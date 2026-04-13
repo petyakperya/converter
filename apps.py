@@ -6,12 +6,21 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, AuthRestartError
 
+# Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Создание директории для сессий
 os.makedirs("sessions", exist_ok=True)
 
-TOKEN = "8613059845:AAGmR3p8x5KdbCeSrhKMeYCm3Q15bnIXhKA"
-API_ID = 33420865
-API_HASH = "fad372ac85456316deec86ff9fbba999"
+# Получение переменных окружения (БЕЗОПАСНО!)
+TOKEN = os.getenv("BOT_TOKEN")
+API_ID = int(os.getenv("API_ID", 0))
+API_HASH = os.getenv("API_HASH")
+
+# Проверка наличия переменных окружения
+if not TOKEN or not API_ID or not API_HASH:
+    logging.error("Ошибка: Не установлены переменные окружения BOT_TOKEN, API_ID, API_HASH")
+    exit(1)
 
 bot = telebot.TeleBot(TOKEN)
 sessions = {}
@@ -148,12 +157,11 @@ def process_code(chat_id):
         bot.send_message(chat_id, f"❌ Ошибка авторизации: {str(e)}")
         cleanup_session(chat_id)
 
-@bot.message_handler(func=lambda m: sessions.get(m.chat.id, {}).get("password") is None)
+@bot.message_handler(func=lambda m: sessions.get(m.chat.id, {}).get("password") is None and m.text != "/start")
 def handle_2fa_password(message):
     chat_id = message.chat.id
     session = sessions.get(chat_id)
-    if not session:
-        logging.warning(f"Session for user {chat_id} not found in 2FA handler")
+    if not session or session.get("password") is not None:
         return
     try:
         session["password"] = message.text
@@ -173,7 +181,7 @@ def send_session_file(chat_id):
             bot.send_document(
                 chat_id,
                 f,
-                caption="📂 Ваш .session файл.\n⚠️ Не передавайте его третьим лицам ! Creator: @worpli, especially for the GitHub"
+                caption="📂 Ваш .session файл.\n⚠️ Не передавайте его третьим лицам! Creator: @worpli, especially for the GitHub"
             )
         logging.info(f"Session file sent for user {chat_id}")
     except Exception as e:
