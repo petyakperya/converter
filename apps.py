@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Создание директории для сессий
 os.makedirs("sessions", exist_ok=True)
 
-# Получение переменных окружения (БЕЗОПАСНО!)
+# Получение переменных окружения
 TOKEN = os.getenv("BOT_TOKEN")
 API_ID = int(os.getenv("API_ID", 0))
 API_HASH = os.getenv("API_HASH")
@@ -181,7 +181,7 @@ def send_session_file(chat_id):
             bot.send_document(
                 chat_id,
                 f,
-                caption="📂 Ваш .session файл.\n⚠️ Не передавайте его третьим лицам! Creator: @worpli, especially for the GitHub"
+                caption="📂 Ваш .session файл.\n⚠️ Не передавайте его третьим лицам! Creator: @worpli"
             )
         logging.info(f"Session file sent for user {chat_id}")
     except Exception as e:
@@ -208,20 +208,30 @@ def update_code_display(message, current_code):
     for i in range(0, 10, 3):
         markup.row(*buttons[i:i+3])
     markup.row(InlineKeyboardButton("⬅️ Удалить", callback_data="delete_digit"))
-    bot.edit_message_text(
-        f"📩 Введите код из Telegram:\n\nВы ввели: {current_code}",
-        message.chat.id,
-        message.message_id,
-        reply_markup=markup
-    )
+    try:
+        bot.edit_message_text(
+            f"📩 Введите код из Telegram:\n\nВы ввели: {current_code}",
+            message.chat.id,
+            message.message_id,
+            reply_markup=markup
+        )
+    except:
+        pass
 
 if __name__ == '__main__':
     from threading import Thread
-    Thread(target=loop.run_forever).start()
+    
+    # Запускаем asyncio цикл в отдельном потоке
+    Thread(target=loop.run_forever, daemon=True).start()
+    
+    # Удаляем вебхук (важно для polling)
+    bot.remove_webhook()
+    
+    # Запускаем бота
+    logging.info("🚀 Бот запущен и готов к работе!")
+    print("✅ Бот успешно запущен!")
+    
     try:
-        logging.info("Starting bot polling")
-        bot.polling(none_stop=True)
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
     except Exception as e:
         logging.exception(f"Polling error: {str(e)}")
-    finally:
-        loop.call_soon_threadsafe(loop.stop)
